@@ -5,11 +5,9 @@ import traceback
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-# Add backend/simulation to path so we can import hos.py and svg_generator.py directly
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+from .hos import simulate_trip
+from .svg_generator import generate_svg_log
 
-from simulation.hos import simulate_trip
-from simulation.svg_generator import generate_svg_log
 
 
 class handler(BaseHTTPRequestHandler):
