@@ -114,10 +114,12 @@ export default function App() {
       cycle_hours_used: formData.cycle_hours_used,
     });
 
-    try {
-      // Relative URL proxies to http://localhost:8000/api/... in development
-      // and rewrites on Vercel deployment automatically.
-      const response = await fetch("/api/simulate/", {
+      // Dynamically use Render backend URL if provided via VITE_API_URL, fallback to relative path
+      const apiUrl = import.meta.env.VITE_API_URL 
+        ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/simulate/` 
+        : "/api/simulate/";
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
