@@ -90,7 +90,15 @@ class handler(BaseHTTPRequestHandler):
             self._send_json(200, result)
         except Exception as exc:
             traceback.print_exc()
-            self._send_error(500, f"Simulation error: {str(exc)}")
+            debug_info = {
+                "error": f"Simulation error: {str(exc)}",
+                "sys_path": sys.path,
+                "cwd": os.getcwd(),
+                "__file__": __file__,
+                "dir_contents": os.listdir(os.path.dirname(__file__)),
+                "cwd_contents": os.listdir(os.getcwd())
+            }
+            self._send_json(500, debug_info)
 
     # ── GET /api/download-log/ ────────────────────────────────────────────────
     def do_GET(self):
