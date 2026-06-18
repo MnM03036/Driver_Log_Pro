@@ -5,8 +5,8 @@ import traceback
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-from .hos import simulate_trip
-from .svg_generator import generate_svg_log
+import hos
+import svg_generator
 
 
 
@@ -88,7 +88,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            result = simulate_trip(current_loc, pickup_loc, dropoff_loc, cycle_hours_used)
+            result = hos.simulate_trip(current_loc, pickup_loc, dropoff_loc, cycle_hours_used)
             self._send_json(200, result)
         except Exception as exc:
             traceback.print_exc()
@@ -129,7 +129,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            sim_data   = simulate_trip(current_loc, pickup_loc, dropoff_loc, cycle_hours_used)
+            sim_data   = hos.simulate_trip(current_loc, pickup_loc, dropoff_loc, cycle_hours_used)
             daily_logs = sim_data.get("daily_logs", [])
 
             target_day = next((l for l in daily_logs if l["day_number"] == day_num), None)
@@ -137,7 +137,7 @@ class handler(BaseHTTPRequestHandler):
                 self._send_error(404, f"Day {day_num} not found. Total days: {len(daily_logs)}")
                 return
 
-            svg_content = generate_svg_log(target_day, driver_name, carrier, vehicle_num, doc_num)
+            svg_content = svg_generator.generate_svg_log(target_day, driver_name, carrier, vehicle_num, doc_num)
             filename    = f"driver_log_day{day_num}_{target_day['date']}.svg" if should_dl else None
             self._send_svg(200, svg_content, filename)
 
