@@ -114,6 +114,7 @@ export default function App() {
       cycle_hours_used: formData.cycle_hours_used,
     });
 
+    try {
       // Dynamically use Render backend URL if provided via VITE_API_URL, fallback to relative path
       const apiUrl = import.meta.env.VITE_API_URL 
         ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/simulate/` 
