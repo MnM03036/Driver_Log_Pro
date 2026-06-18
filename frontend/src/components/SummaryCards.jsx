@@ -2,7 +2,9 @@ import React from "react";
 import { Compass, Clock, RefreshCw, CheckCircle, Info, ShieldCheck } from "lucide-react";
 
 export default function SummaryCards({ simulationData }) {
-  const { total_miles, daily_logs, markers } = simulationData;
+  if (!simulationData) return null;
+
+  const { total_miles = 0, daily_logs = [], markers = [] } = simulationData;
   const numDays = daily_logs.length;
   
   // Extract summary stats from markers
@@ -12,8 +14,10 @@ export default function SummaryCards({ simulationData }) {
   const fuelStops = markers.filter(m => m.type === "fuel").length;
 
   // Compute total travel duration
-  const startLog = daily_logs[0]?.events[0]?.start_time || "00:00";
-  const finalLog = daily_logs[numDays - 1]?.events[daily_logs[numDays - 1].events.length - 1]?.end_time || "24:00";
+  const firstDay = daily_logs[0];
+  const lastDay = daily_logs[numDays - 1];
+  const startLog = firstDay?.events?.[0]?.start_time || "00:00";
+  const finalLog = lastDay?.events?.[lastDay.events.length - 1]?.end_time || "24:00";
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -24,7 +28,7 @@ export default function SummaryCards({ simulationData }) {
         </div>
         <div>
           <span className="block text-xs font-semibold text-slate-400">Total Distance</span>
-          <span className="text-2xl font-black text-white">{total_miles.toLocaleString()} mi</span>
+          <span className="text-2xl font-black text-white">{Number(total_miles).toLocaleString()} mi</span>
           <span className="block text-[10px] text-slate-500 mt-1">Via OSRM Highway Route</span>
         </div>
       </div>

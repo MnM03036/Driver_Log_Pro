@@ -61,8 +61,16 @@ function ChangeView({ bounds }) {
 }
 
 export default function RouteMap({ routeCoords, markers }) {
+  // Guard: routeCoords may be null/undefined if OSRM call failed
+  const safeCoords = Array.isArray(routeCoords) ? routeCoords : [];
+
   // Convert OSRM GeoJSON format [lon, lat] to Leaflet [lat, lon]
-  const leafletCoords = routeCoords.map((coord) => [coord[1], coord[0]]);
+  const leafletCoords = safeCoords
+    .filter((c) => Array.isArray(c) && c.length >= 2)
+    .map((coord) => [Number(coord[1]), Number(coord[0])]);
+
+  // Guard: markers may be null/undefined
+  const safeMarkers = Array.isArray(markers) ? markers : [];
 
   // Build bounds to auto-fit
   const bounds = leafletCoords.length > 0 ? leafletCoords : [[39.8283, -98.5795]]; // Center of USA default
@@ -110,9 +118,13 @@ export default function RouteMap({ routeCoords, markers }) {
         )}
 
         {/* Plot Stop & Break Markers */}
-        {markers.map((marker, idx) => {
+        {safeMarkers.map((marker, idx) => {
+          // Coerce to numbers — backend may return strings
+          const lat = Number(marker.lat);
+          const lon = Number(marker.lon);
+          if (isNaN(lat) || isNaN(lon)) return null; // skip invalid markers
           const color = markerColors[marker.type] || "#64748b";
-          const position = [marker.lat, marker.lon];
+          const position = [lat, lon];
           
           return (
             <Marker

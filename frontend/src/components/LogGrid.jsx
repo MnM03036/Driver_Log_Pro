@@ -4,6 +4,12 @@ import { Download, FileDown, CheckCircle } from "lucide-react";
 export default function LogGrid({ dayLog, driverName, carrierName, vehicleNum, docNum, tripParams }) {
   const canvasRef = useRef(null);
 
+  // Normalise totals — MUST come before useEffect but after hooks
+  // We always compute this (even if dayLog is null) to keep hook order stable
+  const totals = dayLog?.totals
+    ? { OFF: 0, SB: 0, D: 0, ON: 0, total: 24, ...dayLog.totals }
+    : { OFF: 0, SB: 0, D: 0, ON: 0, total: 24 };
+
   // Helper to convert "HH:MM" to minutes since midnight
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
@@ -12,6 +18,9 @@ export default function LogGrid({ dayLog, driverName, carrierName, vehicleNum, d
   };
 
   useEffect(() => {
+    // Guard inside the effect — safe because hooks are always called
+    if (!dayLog || !dayLog.totals || !dayLog.events) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -68,8 +77,8 @@ export default function LogGrid({ dayLog, driverName, carrierName, vehicleNum, d
 
     drawTextBox(380, 70, 180, 42, "Date", `${dayLog.date} (Day ${dayLog.day_number})`);
     drawTextBox(570, 70, 180, 42, "Shipping Doc #", docNum);
-    // Estimate mileage based on driving hours
-    const estMiles = (dayLog.totals.D * 50).toFixed(1);
+    // Estimate mileage based on driving hours (assume ~50 mph average)
+    const estMiles = ((totals.D || 0) * 50).toFixed(1);
     drawTextBox(760, 70, 170, 42, "Total Miles Today", `${estMiles} mi`);
 
     // --- 2. GRID PARAMETERS ---
@@ -192,14 +201,14 @@ export default function LogGrid({ dayLog, driverName, carrierName, vehicleNum, d
     ctx.font = "bold 11px sans-serif";
     ctx.fillStyle = "#2563eb";
     totalKeys.forEach((key, idx) => {
-      const val = dayLog.totals[key] || 0.0;
+      const val = totals[key] || 0.0;
       ctx.fillText(val.toFixed(2), totalsX + 30, gridY + idx * rowH + 21);
     });
 
     // Write sum at the bottom of totals (which must equal 24)
     ctx.fillStyle = "#10b981";
     ctx.font = "bold 11px sans-serif";
-    ctx.fillText(dayLog.totals.total.toFixed(1), totalsX + 30, gridY + gridH + 18);
+    ctx.fillText((totals.total || 24).toFixed(1), totalsX + 30, gridY + gridH + 18);
     ctx.fillStyle = "#475569";
     ctx.font = "italic 9px sans-serif";
     ctx.fillText("Must equal 24h", totalsX + 30, gridY + gridH + 30);
@@ -348,7 +357,8 @@ export default function LogGrid({ dayLog, driverName, carrierName, vehicleNum, d
     ctx.font = "bold 8px sans-serif";
     ctx.fillText("VERIFIED", sigX + 203, sigY - 15);
 
-  }, [dayLog, driverName, carrierName, vehicleNum, docNum]);
+  }, [dayLog, driverName, carrierName, vehicleNum, docNum, totals]);
+
 
   // Local PNG download trigger
   const downloadPng = () => {
@@ -381,6 +391,15 @@ export default function LogGrid({ dayLog, driverName, carrierName, vehicleNum, d
     const url = `/api/download-log/?${params.toString()}`;
     window.open(url, "_blank");
   };
+
+  // Guard in JSX return — safe here, after all hooks
+  if (!dayLog || !dayLog.events) {
+    return (
+      <div className="p-6 text-center text-slate-500 text-sm">
+        No log data available for this day.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
