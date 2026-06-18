@@ -1,9 +1,53 @@
-import React, { useState } from "react";
+import React, { useState, Component } from "react";
 import SimulationForm from "./components/SimulationForm";
 import RouteMap from "./components/Map";
 import LogGrid from "./components/LogGrid";
 import SummaryCards from "./components/SummaryCards";
 import { Truck, MapPin, AlertCircle, FileText, ChevronLeft, ChevronRight, Navigation2, ShieldAlert } from "lucide-react";
+
+// ─── Error Boundary ─────────────────────────────────────────────────────────
+// Catches any rendering crashes inside the results panel and shows a friendly
+// error message instead of a completely blank screen.
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMessage: "" };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorMessage: error?.message || "Unknown render error" };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("[ErrorBoundary] Render crash:", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 flex items-start gap-4">
+          <AlertCircle className="w-7 h-7 text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-bold text-red-400 text-sm">Display Error</h3>
+            <p className="text-xs text-red-300/80 mt-1 leading-relaxed">
+              A component crashed while rendering the simulation results.
+            </p>
+            <pre className="mt-3 text-[10px] text-red-400 bg-red-950/30 p-3 rounded border border-red-500/10 font-mono overflow-auto max-h-40 whitespace-pre-wrap">
+              {this.state.errorMessage}
+            </pre>
+            <button
+              onClick={() => this.setState({ hasError: false, errorMessage: "" })}
+              className="mt-3 text-xs text-red-400 underline hover:text-red-300"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(false);
@@ -86,14 +130,17 @@ export default function App() {
 
       if (!response.ok) {
         const errorJson = await response.json().catch(() => ({}));
-        throw new Error(errorJson.error || `HTTP error ${response.status}`);
+        throw new Error(errorJson.error || `Server returned HTTP ${response.status}`);
       }
 
       const data = await response.json();
+      if (!data || !data.daily_logs || !data.markers) {
+        throw new Error("Invalid response from server: missing daily_logs or markers.");
+      }
       setSimulationData(data);
     } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to establish server connection. Verify Django is running.");
+      setError(err.message || "Failed to connect to the API. Check the Vercel function logs.");
     } finally {
       setIsLoading(false);
     }
@@ -175,7 +222,7 @@ export default function App() {
                 <h3 className="font-bold text-red-400 text-sm">Simulation Failure</h3>
                 <p className="text-xs text-red-300/80 mt-1 leading-relaxed">{error}</p>
                 <div className="mt-3 text-[10px] text-red-500 bg-red-950/20 p-2 rounded border border-red-500/10 font-mono">
-                  Make sure your backend server is active at localhost:8000
+                  Check the Vercel function logs for details: Vercel Dashboard → Project → Functions
                 </div>
               </div>
             </div>
@@ -224,122 +271,124 @@ export default function App() {
               </div>
             </div>
           ) : (
-            /* Main Outputs Render (Map, KPIs, Logs) */
-            <div className="space-y-6">
-              {/* KPIs Header */}
-              <SummaryCards simulationData={simulationData} />
+            /* Main Outputs Render (Map, KPIs, Logs) — wrapped in ErrorBoundary */
+            <ErrorBoundary>
+              <div className="space-y-6">
+                {/* KPIs Header */}
+                <SummaryCards simulationData={simulationData} />
 
-              {/* Map & Stop Listing Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Map (2 spans) */}
-                <div className="lg:col-span-2 h-[380px]">
-                  <RouteMap
-                    routeCoords={simulationData.route_coordinates}
-                    markers={simulationData.markers}
+                {/* Map & Stop Listing Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Map (2 spans) */}
+                  <div className="lg:col-span-2 h-[380px]">
+                    <RouteMap
+                      routeCoords={simulationData.route_coordinates}
+                      markers={simulationData.markers}
+                    />
+                  </div>
+
+                  {/* Markers & Stops list (1 span) */}
+                  <div className="lg:col-span-1 glass p-4 rounded-2xl glow-sky flex flex-col h-[380px] overflow-hidden">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                      <ShieldAlert className="w-4 h-4 text-purple-400" /> Chronological Stops
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                      {simulationData.markers.map((marker, idx) => {
+                        const typeColors = {
+                          start: "text-sky-400 border-sky-500/20 bg-sky-500/5",
+                          pickup: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5",
+                          dropoff: "text-rose-400 border-rose-500/20 bg-rose-500/5",
+                          rest: "text-purple-400 border-purple-500/20 bg-purple-500/5",
+                          break: "text-amber-400 border-amber-500/20 bg-amber-500/5",
+                          fuel: "text-cyan-400 border-cyan-500/20 bg-cyan-500/5",
+                          restart: "text-indigo-400 border-indigo-500/20 bg-indigo-500/5",
+                        };
+
+                        const timeStr = marker.time
+                          ? new Date(marker.time).toLocaleTimeString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Start";
+
+                        return (
+                          <div
+                            key={idx}
+                            className={`p-2.5 rounded-xl border flex gap-3 text-xs ${
+                              typeColors[marker.type] || "text-slate-400 border-slate-800"
+                            }`}
+                          >
+                            <div className="font-bold font-mono py-0.5">{timeStr}</div>
+                            <div>
+                              <div className="font-bold text-[11px] uppercase">{marker.label}</div>
+                              <div className="text-[10px] opacity-80 mt-0.5 leading-relaxed">{marker.description}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* daily ELD Logs Carousel Section */}
+                <div className="glass p-5 rounded-2xl glow-sky space-y-5">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-900 pb-4">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-sky-400" />
+                      <div>
+                        <h3 className="text-sm font-bold tracking-tight text-white uppercase">Daily Logs</h3>
+                        <p className="text-[10px] text-slate-400">Select day sheet to view and export</p>
+                      </div>
+                    </div>
+
+                    {/* Day Navigation Controls (Carousel Tabs) */}
+                    <div className="flex items-center gap-2 bg-slate-900/60 p-1 rounded-xl border border-slate-800/40">
+                      <button
+                        onClick={() => setSelectedDayIdx(prev => Math.max(0, prev - 1))}
+                        disabled={selectedDayIdx === 0}
+                        className="p-1 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 transition"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      
+                      <div className="flex gap-1">
+                        {simulationData.daily_logs.map((log, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedDayIdx(idx)}
+                            className={`px-3 py-1 rounded text-xs font-bold transition ${
+                              selectedDayIdx === idx
+                                ? "bg-sky-500 text-white shadow"
+                                : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                            }`}
+                          >
+                            Day {log.day_number}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedDayIdx(prev => Math.min(simulationData.daily_logs.length - 1, prev + 1))}
+                        disabled={selectedDayIdx === simulationData.daily_logs.length - 1}
+                        className="p-1 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 transition"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Canvas grid rendering */}
+                  <LogGrid
+                    dayLog={simulationData.daily_logs[selectedDayIdx]}
+                    driverName={driverMeta.driver_name || "James Carter"}
+                    carrierName={driverMeta.carrier_name || "Roadrunner Freight LLC"}
+                    vehicleNum={driverMeta.vehicle_num || "TRK-5520"}
+                    docNum={driverMeta.doc_num || "BOL-9908"}
+                    tripParams={tripParams}
                   />
                 </div>
-
-                {/* Markers & Stops list (1 span) */}
-                <div className="lg:col-span-1 glass p-4 rounded-2xl glow-sky flex flex-col h-[380px] overflow-hidden">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-                    <ShieldAlert className="w-4 h-4 text-purple-400" /> Chronological Stops
-                  </h3>
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                    {simulationData.markers.map((marker, idx) => {
-                      const typeColors = {
-                        start: "text-sky-400 border-sky-500/20 bg-sky-500/5",
-                        pickup: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5",
-                        dropoff: "text-rose-400 border-rose-500/20 bg-rose-500/5",
-                        rest: "text-purple-400 border-purple-500/20 bg-purple-500/5",
-                        break: "text-amber-400 border-amber-500/20 bg-amber-500/5",
-                        fuel: "text-cyan-400 border-cyan-500/20 bg-cyan-500/5",
-                        restart: "text-indigo-400 border-indigo-500/20 bg-indigo-500/5",
-                      };
-
-                      const timeStr = marker.time
-                        ? new Date(marker.time).toLocaleTimeString("en-US", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "Start";
-
-                      return (
-                        <div
-                          key={idx}
-                          className={`p-2.5 rounded-xl border flex gap-3 text-xs ${
-                            typeColors[marker.type] || "text-slate-400 border-slate-800"
-                          }`}
-                        >
-                          <div className="font-bold font-mono py-0.5">{timeStr}</div>
-                          <div>
-                            <div className="font-bold text-[11px] uppercase">{marker.label}</div>
-                            <div className="text-[10px] opacity-80 mt-0.5 leading-relaxed">{marker.description}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
-
-              {/* daily ELD Logs Carousel Section */}
-              <div className="glass p-5 rounded-2xl glow-sky space-y-5">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-900 pb-4">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-sky-400" />
-                    <div>
-                      <h3 className="text-sm font-bold tracking-tight text-white uppercase">Daily Logs</h3>
-                      <p className="text-[10px] text-slate-400">Select day sheet to view and export</p>
-                    </div>
-                  </div>
-
-                  {/* Day Navigation Controls (Carousel Tabs) */}
-                  <div className="flex items-center gap-2 bg-slate-900/60 p-1 rounded-xl border border-slate-800/40">
-                    <button
-                      onClick={() => setSelectedDayIdx(prev => Math.max(0, prev - 1))}
-                      disabled={selectedDayIdx === 0}
-                      className="p-1 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 transition"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    
-                    <div className="flex gap-1">
-                      {simulationData.daily_logs.map((log, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => setSelectedDayIdx(idx)}
-                          className={`px-3 py-1 rounded text-xs font-bold transition ${
-                            selectedDayIdx === idx
-                              ? "bg-sky-500 text-white shadow"
-                              : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
-                          }`}
-                        >
-                          Day {log.day_number}
-                        </button>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => setSelectedDayIdx(prev => Math.min(simulationData.daily_logs.length - 1, prev + 1))}
-                      disabled={selectedDayIdx === simulationData.daily_logs.length - 1}
-                      className="p-1 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 transition"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Canvas grid rendering */}
-                <LogGrid
-                  dayLog={simulationData.daily_logs[selectedDayIdx]}
-                  driverName={driverMeta.driver_name || "James Carter"}
-                  carrierName={driverMeta.carrier_name || "Roadrunner Freight LLC"}
-                  vehicleNum={driverMeta.vehicle_num || "TRK-5520"}
-                  docNum={driverMeta.doc_num || "BOL-9908"}
-                  tripParams={tripParams}
-                />
-              </div>
-            </div>
+            </ErrorBoundary>
           )}
         </div>
       </main>
