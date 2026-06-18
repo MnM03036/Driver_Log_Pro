@@ -140,6 +140,7 @@ export default function App() {
       setSimulationData(data);
     } catch (err) {
       console.error(err);
+      setSimulationData(null);
       setError(err.message || "Failed to connect to the API. Check the Vercel function logs.");
     } finally {
       setIsLoading(false);
@@ -270,7 +271,7 @@ export default function App() {
                 Fetching path coordinates via Open Source Routing Machine (OSRM)...
               </div>
             </div>
-          ) : (
+          ) : simulationData ? (
             /* Main Outputs Render (Map, KPIs, Logs) — wrapped in ErrorBoundary */
             <ErrorBoundary>
               <div className="space-y-6">
@@ -389,7 +390,7 @@ export default function App() {
                 </div>
               </div>
             </ErrorBoundary>
-          )}
+          ) : null}
         </div>
       </main>
 
