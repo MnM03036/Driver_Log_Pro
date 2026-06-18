@@ -5,6 +5,9 @@ import traceback
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
+# Add current directory to sys.path for Vercel's Edge execution environment
+sys.path.append(os.path.dirname(__file__))
+
 
 
 class handler(BaseHTTPRequestHandler):
