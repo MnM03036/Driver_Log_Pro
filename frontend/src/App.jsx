@@ -117,8 +117,8 @@ export default function App() {
     try {
       // Dynamically use Render backend URL if provided via VITE_API_URL, fallback to relative path
       const apiUrl = import.meta.env.VITE_API_URL 
-        ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/simulate/` 
-        : "/api/simulate/";
+        ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/simulate` 
+        : "/api/simulate";
 
       const response = await fetch(apiUrl, {
         method: "POST",

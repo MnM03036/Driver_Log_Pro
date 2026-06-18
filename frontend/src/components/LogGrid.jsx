@@ -388,11 +388,11 @@ export default function LogGrid({ dayLog, driverName, carrierName, vehicleNum, d
       download: "true"
     });
 
-    const baseUrl = import.meta.env.VITE_API_URL
-      ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/download-log/`
-      : "/api/download-log/";
+    const apiUrl = import.meta.env.VITE_API_URL
+      ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/download-log`
+      : "/api/download-log";
 
-    const url = `${baseUrl}?${params.toString()}`;
+    const url = `${apiUrl}?${params.toString()}`;
     window.open(url, "_blank");
   };
 
