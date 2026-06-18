@@ -4,7 +4,7 @@ import os
 # Add api to sys.path so it can import hos
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'api')))
 
-from api.index import handler
+from api.simulate import handler
 from http.server import HTTPServer
 import threading
 import requests

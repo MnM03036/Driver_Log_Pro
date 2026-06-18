@@ -5,9 +5,6 @@ import traceback
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-import hos
-import svg_generator
-
 
 
 class handler(BaseHTTPRequestHandler):
@@ -85,6 +82,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
+            import hos
             result = hos.simulate_trip(current_loc, pickup_loc, dropoff_loc, cycle_hours_used)
             self._send_json(200, result)
         except Exception as exc:
@@ -123,6 +121,8 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
+            import hos
+            import svg_generator
             sim_data   = hos.simulate_trip(current_loc, pickup_loc, dropoff_loc, cycle_hours_used)
             daily_logs = sim_data.get("daily_logs", [])
 
