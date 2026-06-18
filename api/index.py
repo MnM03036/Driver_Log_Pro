@@ -63,10 +63,7 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
-
-        if path not in ("/api/simulate", "/api/simulate/"):
-            self._send_error(404, "Not found")
-            return
+        print(f"[do_POST] path was: {self.path}")
 
         data = self._read_body()
 
@@ -98,15 +95,12 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed   = urlparse(self.path)
         path     = parsed.path.rstrip("/")
+        print(f"[do_GET] path was: {self.path}")
         qs       = parse_qs(parsed.query)
 
         def qs_get(key, default=""):
             vals = qs.get(key, [default])
             return vals[0] if vals else default
-
-        if path not in ("/api/download-log", "/api/download-log/"):
-            self._send_error(404, "Not found")
-            return
 
         current_loc  = qs_get("current_location")
         pickup_loc   = qs_get("pickup_location")
